@@ -16,16 +16,7 @@ with open('train.p', mode='rb') as f:
 	orig_data = pickle.load(f)
 
 # TODO: Split data into training and validation sets.
-X_orig, y_orig = orig_data['features'], orig_data['labels']
-#print("len(X_orig):", len(X_orig), "  len(y_orig):", len(y_orig))
-assert(len(X_orig) == len(y_orig))
-
-# Use 1/10th of the data for validation
-validataionSetSize = len(X_orig) // 10
-X_train = X_orig[:validataionSetSize]
-y_train = y_orig[:validataionSetSize:]
-X_valid = X_orig[validataionSetSize:]
-y_valid = y_orig[validataionSetSize:]
+X_train, X_valid, y_train, y_valid = train_test_split(orig_data['features'], orig_data['labels'], test_size=0.33, random_state=0)
 
 #print("len(X_train):", len(X_train), "  len(y_train):", len(y_train))
 #print("len(X_valid):", len(X_valid), "  len(y_valid):", len(y_valid))
@@ -33,7 +24,8 @@ assert(len(X_train) == len(y_train))
 assert(len(X_valid) == len(y_valid))
 
 # TODO: Define placeholders and resize operation.
-x = tf.placeholder(tf.float32, (None, 32, 32, 3))
+x = tf.placeholder(tf.float32, (None, 32, 32, 3), name="x")
+y = tf.placeholder(tf.int64, (None), name="y")
 resized = tf.image.resize_images(x, (227, 227))
 
 # TODO: pass placeholder as first argument to `AlexNet`.
@@ -50,37 +42,47 @@ shape = (fc7.get_shape().as_list()[-1], nb_classes)  # use this shape for the we
 fc8W = tf.Variable(tf.random_normal(shape, mean=0, stddev=0.1), name="fc8W")
 fc8b = tf.Variable(tf.zeros(nb_classes), name="fc8b")
 
-logits = tf.matmul(fc7, fc8W) + fc8b
-probs = tf.nn.softmax(logits)
-
+#logits = tf.matmul(fc7, fc8W) + fc8b
+#probs = tf.nn.softmax(logits)
+logits = tf.nn.xw_plus_b(fc7, fc8W, fc8b)
 
 # TODO: Define loss, training, accuracy operations.
 # HINT: Look back at your traffic signs project solution, you may
 # be able to reuse some the code.
-y = tf.placeholder(tf.int32, (None), name="y")
 one_hot_y = tf.one_hot(y, 43)
 
-cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=batch_y, logits=logits)
+cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y, logits=logits)
 loss_operation = tf.reduce_mean(cross_entropy)
 optimizer = tf.train.AdamOptimizer(learning_rate = RATE)
-training_operation = optimizer.minimize(loss_operation)
+training_operation = optimizer.minimize(loss_operation, var_list=[fc8W, fc8b])
 
-
-correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(one_hot_y, 1))
+prediction = tf.arg_max(logits, 1)
+#correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(one_hot_y, 1))
 accuracy_operation = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-def evaluate(X_data, y_data):
-    num_examples = len(X_data)
+#def evaluate(X_data, y_data):
+#    num_examples = len(X_data)
+#    total_accuracy = 0
+#    sess = tf.get_default_session()
+#    for offset in range(0, num_examples, BATCH_SIZE):
+#        end_of_batch = offset+BATCH_SIZE
+#        batch_x = X_data[offset:end_of_batch]
+#        batch_y = y_data[offset:end_of_batch]
+#        accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y})
+#        total_accuracy += (accuracy * len(batch_x))
+#    return total_accuracy / num_examples
+ 
+def eval_on_data(X, y, sess):
     total_accuracy = 0
-    sess = tf.get_default_session()
-    for offset in range(0, num_examples, BATCH_SIZE):
-        end_of_batch = offset+BATCH_SIZE
-        batch_x = X_data[offset:end_of_batch]
-        batch_y = y_data[offset:end_of_batch]
-        accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y})
-        total_accuracy += (accuracy * len(batch_x))
-    return total_accuracy / num_examples
-    
+    total_loss = 0
+    for offset in range(0, X.shape[0], BATCH_SIZE):
+        end = offset + BATCH_SIZE
+        X_batch = X[offset:end]
+        y_batch = y[offset:end]
+        loss, acc = sess.run([loss_operation, accuracy_operation], feed_dict={x:X_batch, y:y_batch})
+        total_loss += (loss * X_batch.shape[0])
+        total_Acuracy += (loss * X_batch.sahpe[0])
+    return total_loss / X.shape[0], total_accuracy/X.shape[0]    
 
 # TODO: Train and evaluate the feature extraction model.
 accuracy_train = np.zeros(EPOCHS)
