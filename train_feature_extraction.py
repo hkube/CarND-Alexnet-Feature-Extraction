@@ -60,7 +60,7 @@ probs = tf.nn.softmax(logits)
 y = tf.placeholder(tf.int32, (None), name="y")
 one_hot_y = tf.one_hot(y, 43)
 
-cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=one_hot_y, logits=logits)
+cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=batch_y, logits=logits)
 loss_operation = tf.reduce_mean(cross_entropy)
 optimizer = tf.train.AdamOptimizer(learning_rate = RATE)
 training_operation = optimizer.minimize(loss_operation)
@@ -74,10 +74,13 @@ def evaluate(X_data, y_data):
     total_accuracy = 0
     sess = tf.get_default_session()
     for offset in range(0, num_examples, BATCH_SIZE):
-        batch_x, batch_y = X_data[offset:offset+BATCH_SIZE], y_data[offset:offset+BATCH_SIZE]
+    	end_of_batch = offset+BATCH_SIZE
+        batch_x = X_data[offset:end_of_batch]
+        batch_y = y_data[offset:end_of_batch]
         accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y})
         total_accuracy += (accuracy * len(batch_x))
     return total_accuracy / num_examples
+    
 
 # TODO: Train and evaluate the feature extraction model.
 accuracy_train = np.zeros(EPOCHS)
@@ -91,6 +94,7 @@ with tf.Session() as sess:
     print("Training...")
     for i in range(EPOCHS):
         X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
+        t0 = time.time()
         for offset in range(0, num_examples, BATCH_SIZE):
             end = offset + BATCH_SIZE
             batch_x, batch_y = X_train[offset:end], y_train[offset:end]
@@ -98,5 +102,5 @@ with tf.Session() as sess:
             
         accuracy_train[i] = evaluate(X_train, y_train)
         accuracy_valid[i] = evaluate(X_valid, y_valid)
-        print("EPOCH [{}] ... accuracy train: {:.3f} valid: {:.3f}".format(i+1, accuracy_train[i], accuracy_valid[i]))
+        print("EPOCH [{}] ... Time: {:.3f} seconds, accuracy train: {:.3f} valid: {:.3f}".format(time.time() - t0, i+1, accuracy_train[i], accuracy_valid[i]))
 
