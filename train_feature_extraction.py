@@ -74,7 +74,7 @@ def evaluate(X_data, y_data):
     total_accuracy = 0
     sess = tf.get_default_session()
     for offset in range(0, num_examples, BATCH_SIZE):
-    	end_of_batch = offset+BATCH_SIZE
+        end_of_batch = offset+BATCH_SIZE
         batch_x = X_data[offset:end_of_batch]
         batch_y = y_data[offset:end_of_batch]
         accuracy = sess.run(accuracy_operation, feed_dict={x: batch_x, y: batch_y})
